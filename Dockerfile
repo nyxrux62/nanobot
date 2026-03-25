@@ -35,6 +35,14 @@ WORKDIR /app
 # Create config directory
 RUN mkdir -p /root/.nanobot
 
+# Persist user-installed packages in the mounted volume
+# pip install → /root/.nanobot/pip, npm install -g → /root/.nanobot/npm
+ENV PIP_USER=1 \
+    PYTHONUSERBASE=/root/.nanobot/pip \
+    NPM_CONFIG_PREFIX=/root/.nanobot/npm \
+    NPM_CONFIG_CACHE=/root/.nanobot/npm/cache \
+    PATH="/root/.nanobot/pip/bin:/root/.nanobot/npm/bin:${PATH}"
+
 # Entrypoint: auto-generates config.json from env vars if missing
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
