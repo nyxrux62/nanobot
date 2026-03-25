@@ -34,3 +34,4 @@ Ollama Cloud API를 LLM provider로 사용할 수 있도록 추가.
 - `PIP_USER=1` + `PYTHONUSERBASE=/root/.nanobot/pip` — pip 패키지를 마운트 볼륨에 설치
 - `NPM_CONFIG_PREFIX` + `NPM_CONFIG_CACHE` → `/root/.nanobot/npm` — npm/npx 패키지 보존
 - `PATH`에 해당 경로 추가
+- `TOOLS.md` 템플릿에 패키지 지속성 정보 추가 (에이전트가 올바른 안내를 제공하도록)

@@ -31,6 +31,15 @@ This file documents non-obvious constraints and usage patterns.
 - Prefer this over `exec` for code and history searches
 - Binary or oversized files may be skipped to keep results readable
 
+## exec — Package Persistence (Docker)
+
+When running inside a Docker container, pip and npm packages are configured to install into the mounted volume and survive container restarts:
+
+- `pip install <pkg>` → `/root/.nanobot/pip/` (persistent)
+- `npm install -g <pkg>` → `/root/.nanobot/npm/` (persistent)
+- `npx <pkg>` cache → `/root/.nanobot/npm/cache/` (persistent)
+- `apt-get install` → container filesystem (NOT persistent, use Dockerfile instead)
+
 ## cron — Scheduled Reminders
 
 - Please refer to cron skill for usage.
