@@ -26,3 +26,11 @@ Ollama Cloud API를 LLM provider로 사용할 수 있도록 추가.
 - 민감 정보는 `.env` 파일로 분리 (`.gitignore` 포함)
 
 상세: [docs/MULTI_INSTANCE_DEPLOY.md](./MULTI_INSTANCE_DEPLOY.md)
+
+## Persistent Runtime Packages
+
+에이전트가 런타임에 설치하는 pip/npm 패키지를 컨테이너 재시작 후에도 보존.
+
+- `PIP_USER=1` + `PYTHONUSERBASE=/root/.nanobot/pip` — pip 패키지를 마운트 볼륨에 설치
+- `NPM_CONFIG_PREFIX` + `NPM_CONFIG_CACHE` → `/root/.nanobot/npm` — npm/npx 패키지 보존
+- `PATH`에 해당 경로 추가
