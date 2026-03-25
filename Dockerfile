@@ -35,8 +35,12 @@ WORKDIR /app
 # Create config directory
 RUN mkdir -p /root/.nanobot
 
+# Entrypoint: auto-generates config.json from env vars if missing
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Gateway default port
 EXPOSE 18790
 
-ENTRYPOINT ["nanobot"]
-CMD ["status"]
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["gateway"]

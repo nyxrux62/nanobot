@@ -452,6 +452,23 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         strip_model_prefix=False,
         model_overrides=(),
     ),
+    # === Ollama Cloud (remote, same native API as local Ollama) ==============
+    ProviderSpec(
+        name="ollama_cloud",
+        keywords=("ollama-cloud", "ollama_cloud"),
+        env_key="OLLAMA_CLOUD_API_KEY",
+        display_name="Ollama Cloud",
+        litellm_prefix="ollama_chat",  # same LiteLLM routing as local Ollama
+        skip_prefixes=("ollama/", "ollama_chat/"),
+        env_extras=(),
+        is_gateway=True,  # routes any model via Ollama Cloud
+        is_local=False,
+        detect_by_key_prefix="",
+        detect_by_base_keyword="ollama.com",
+        default_api_base="https://ollama.com",
+        strip_model_prefix=False,
+        model_overrides=(),
+    ),
     # === OpenVINO Model Server (direct, local, OpenAI-compatible at /v3) ===
     ProviderSpec(
         name="ovms",
