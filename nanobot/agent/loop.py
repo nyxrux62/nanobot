@@ -20,6 +20,7 @@ from nanobot.agent.memory import Consolidator, Dream
 from nanobot.agent.runner import _MAX_INJECTIONS_PER_TURN, AgentRunSpec, AgentRunner
 from nanobot.agent.subagent import SubagentManager
 from nanobot.agent.tools.cron import CronTool
+from nanobot.agent.tools.reload_mcp import ReloadMCPTool
 from nanobot.agent.skills import BUILTIN_SKILLS_DIR
 from nanobot.agent.tools.filesystem import EditFileTool, ListDirTool, ReadFileTool, WriteFileTool
 from nanobot.agent.tools.message import MessageTool
@@ -280,6 +281,7 @@ class AgentLoop:
             self.tools.register(
                 CronTool(self.cron_service, default_timezone=self.context.timezone or "UTC")
             )
+        self.tools.register(ReloadMCPTool(self))
 
     async def _connect_mcp(self) -> None:
         """Connect to configured MCP servers (one-time, lazy)."""
@@ -586,6 +588,44 @@ class AgentLoop:
             except (RuntimeError, BaseExceptionGroup):
                 logger.debug("MCP server '{}' cleanup error (can be ignored)", name)
         self._mcp_stacks.clear()
+
+    async def reconnect_mcp(self) -> str:
+        """Disconnect existing MCP servers, re-read config, and reconnect."""
+        from nanobot.config.loader import load_config
+
+        # 1. Close existing MCP connections
+        if self._mcp_stack:
+            try:
+                await self._mcp_stack.aclose()
+            except (RuntimeError, BaseExceptionGroup):
+                pass
+            self._mcp_stack = None
+
+        # 2. Unregister all MCP tools from registry
+        mcp_tool_names = [n for n in self.tools.tool_names if n.startswith("mcp_")]
+        for name in mcp_tool_names:
+            self.tools.unregister(name)
+
+        # 3. Re-read config.json for updated mcp_servers
+        config = load_config()
+        self._mcp_servers = config.tools.mcp_servers
+
+        # 4. Reset flags so _connect_mcp() runs again
+        self._mcp_connected = False
+        self._mcp_connecting = False
+
+        if not self._mcp_servers:
+            return f"Removed {len(mcp_tool_names)} MCP tools. No MCP servers configured."
+
+        # 5. Reconnect
+        await self._connect_mcp()
+
+        new_mcp_tools = [n for n in self.tools.tool_names if n.startswith("mcp_")]
+        return (
+            f"MCP reload complete. "
+            f"Removed {len(mcp_tool_names)} old tools, "
+            f"registered {len(new_mcp_tools)} new tools: {', '.join(new_mcp_tools) or '(none)'}."
+        )
 
     def _schedule_background(self, coro) -> None:
         """Schedule a coroutine as a tracked background task (drained on shutdown)."""
