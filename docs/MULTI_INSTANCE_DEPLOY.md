@@ -24,6 +24,24 @@
 - 호스트 포트만 사용자별로 다르게 매핑
 - 볼륨 분리로 세션/데이터 완전 격리
 
+## 파일 구조
+
+에이전트별 독립 compose 파일로 운영한다:
+
+```
+docker-compose.lato.yml     # lato 에이전트 (자체 완결형)
+docker-compose.bob.yml      # bob 에이전트 (자체 완결형)
+.env                        # 공용 환경변수 (토큰, API 키)
+```
+
+각 에이전트는 완전히 독립적으로 관리:
+
+```bash
+docker compose -f docker-compose.lato.yml up -d
+docker compose -f docker-compose.lato.yml up -d --build
+docker compose -f docker-compose.lato.yml down
+```
+
 ## 구현
 
 ### 1. `scripts/docker-entrypoint.sh`
@@ -52,88 +70,52 @@
 > - workspace 디렉토리 생성도 gateway가 자동 처리
 > - entrypoint에서 채널 설정을 직접 포함하므로 `_onboard_plugins` 불필요
 
-### 2. `Dockerfile` 변경
+### 2. 에이전트 compose 파일
 
-```dockerfile
-COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["gateway"]
-```
-
-### 3. `docker-compose.yml`
+각 에이전트는 독립된 `docker-compose.{name}.yml` 파일을 가진다:
 
 ```yaml
-x-common-build: &common-build
-  build:
-    context: .
-    dockerfile: Dockerfile
-
-x-gateway-base: &gateway-base
-  <<: *common-build
-  command: ["gateway"]
-  restart: unless-stopped
-  deploy:
-    resources:
-      limits:
-        cpus: '1'
-        memory: 1G
-      reservations:
-        cpus: '0.25'
-        memory: 256M
-
-x-cli-base: &cli-base
-  <<: *common-build
-  profiles:
-    - cli
-  stdin_open: true
-  tty: true
+name: nanobot-{name}
 
 services:
-  # === User: alice ===
-  nanobot-gateway-alice:
-    container_name: nanobot-gateway-alice
-    <<: *gateway-base
+  nanobot-gateway-{name}:
+    container_name: nanobot-gateway-{name}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["gateway"]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     volumes:
-      - ~/.nanobot-alice:/root/.nanobot
+      - ~/.nanobot-{name}:/root/.nanobot
     ports:
-      - "18790:18790"
+      - "{port}:18790"
     environment:
       NANOBOT_CHANNEL: telegram
-      NANOBOT_BOT_TOKEN: "${ALICE_BOT_TOKEN}"
-      NANOBOT_ALLOW_FROM: "${ALICE_ALLOW_FROM}"
-      NANOBOT_PROVIDER: "${ALICE_PROVIDER}"
-      NANOBOT_MODEL: "${ALICE_MODEL}"
-      NANOBOT_API_KEY: "${ALICE_API_KEY}"
+      NANOBOT_BOT_TOKEN: "${NAME_BOT_TOKEN}"
+      NANOBOT_ALLOW_FROM: "${NAME_ALLOW_FROM}"
+      NANOBOT_PROVIDER: "${NAME_PROVIDER}"
+      NANOBOT_MODEL: "${NAME_MODEL}"
+      NANOBOT_API_KEY: "${NAME_API_KEY}"
 
-  nanobot-cli-alice:
-    container_name: nanobot-cli-alice
-    <<: *cli-base
+  nanobot-cli-{name}:
+    container_name: nanobot-cli-{name}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles:
+      - cli
+    stdin_open: true
+    tty: true
     volumes:
-      - ~/.nanobot-alice:/root/.nanobot
-    command: ["status"]
-
-  # === User: bob ===
-  nanobot-gateway-bob:
-    container_name: nanobot-gateway-bob
-    <<: *gateway-base
-    volumes:
-      - ~/.nanobot-bob:/root/.nanobot
-    ports:
-      - "18791:18790"
-    environment:
-      NANOBOT_CHANNEL: telegram
-      NANOBOT_BOT_TOKEN: "${BOB_BOT_TOKEN}"
-      NANOBOT_ALLOW_FROM: "${BOB_ALLOW_FROM}"
-      NANOBOT_PROVIDER: "${BOB_PROVIDER}"
-      NANOBOT_MODEL: "${BOB_MODEL}"
-      NANOBOT_API_KEY: "${BOB_API_KEY}"
-
-  nanobot-cli-bob:
-    container_name: nanobot-cli-bob
-    <<: *cli-base
-    volumes:
-      - ~/.nanobot-bob:/root/.nanobot
+      - ~/.nanobot-{name}:/root/.nanobot
     command: ["status"]
 ```
 
@@ -141,11 +123,11 @@ services:
 
 ```bash
 # .env
-ALICE_BOT_TOKEN=123456:AAF-alice-bot-token
-ALICE_ALLOW_FROM=alice_telegram_id
-ALICE_PROVIDER=ollama_cloud
-ALICE_MODEL=glm-5:cloud
-ALICE_API_KEY=your-alice-api-key
+LATO_BOT_TOKEN=123456:AAF-lato-bot-token
+LATO_ALLOW_FROM=lato_telegram_id
+LATO_PROVIDER=ollama_cloud
+LATO_MODEL=glm-5:cloud
+LATO_API_KEY=your-lato-api-key
 
 BOB_BOT_TOKEN=789012:AAF-bob-bot-token
 BOB_ALLOW_FROM=bob_telegram_id
@@ -156,41 +138,38 @@ BOB_API_KEY=your-bob-api-key
 
 ## 사용자 추가
 
-새 사용자 추가 시 `docker-compose.yml`에 gateway + cli 서비스 쌍을 복사하고:
-
-1. 서비스명/컨테이너명 변경: `nanobot-gateway-{name}`, `nanobot-cli-{name}`
-2. 볼륨 경로 변경: `~/.nanobot-{name}:/root/.nanobot`
-3. 호스트 포트 변경: `1879N:18790`
-4. 환경변수에 해당 사용자의 봇 토큰, provider, 모델, API 키 설정
+1. `docker-compose.{name}.yml` 파일 생성 (위 템플릿 참고, `name:` 필드 포함)
+2. `.env`에 해당 사용자의 환경변수 추가
+3. `docker compose -f docker-compose.{name}.yml up -d`
 
 ## 운영
 
 ```bash
-# 전체 시작
-docker compose up -d
+# === 개별 에이전트 관리 ===
 
-# 개별 시작
-docker compose up -d nanobot-gateway-alice
+# 시작
+docker compose -f docker-compose.lato.yml up -d
+
+# 재빌드 후 시작
+docker compose -f docker-compose.lato.yml up -d --build
 
 # 로그 확인
-docker compose logs -f nanobot-gateway-alice
+docker compose -f docker-compose.lato.yml logs -f
 
 # CLI로 상태 확인
-docker compose run --rm nanobot-cli-alice status
+docker compose -f docker-compose.lato.yml run --rm nanobot-cli-lato status
+
+# 중지
+docker compose -f docker-compose.lato.yml down
 
 # 설정 수동 편집 후 반영
-vim ~/.nanobot-alice/config.json
-docker compose restart nanobot-gateway-alice
+vim ~/.nanobot-lato/config.json
+docker compose -f docker-compose.lato.yml restart nanobot-gateway-lato
 
 # 설정 초기화 (환경변수에서 재생성)
-rm ~/.nanobot-alice/config.json
-docker compose restart nanobot-gateway-alice
+rm ~/.nanobot-lato/config.json
+docker compose -f docker-compose.lato.yml restart nanobot-gateway-lato
 
-# 전체 중지
-docker compose down
-
-# 이미지 재빌드 후 재시작
-docker compose up -d --build
 ```
 
 ## 리소스
