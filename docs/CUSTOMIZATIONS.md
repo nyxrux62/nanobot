@@ -35,6 +35,20 @@ Ollama Cloud API를 LLM provider로 사용할 수 있도록 추가.
 - `PATH`에 해당 경로 추가
 - `TOOLS.md` 템플릿에 패키지 지속성 정보 추가 (에이전트가 올바른 안내를 제공하도록)
 
+## Hot Reload allowFrom
+
+채널의 `allowFrom` 설정 변경 시 컨테이너 재시작 없이 자동 반영.
+
+- `ChannelManager._watch_allow_from()` — config.json 파일 변경을 5초 간격으로 감지
+- 변경 감지 시 각 채널의 `allow_from` 리스트를 즉시 업데이트
+- dict config (플러그인)과 Pydantic config (빌트인 채널) 모두 지원
+
+| 동작 | 설명 |
+|---|---|
+| 파일 감지 | `stat().st_mtime` 비교로 변경 감지 |
+| 적용 범위 | 활성화된 모든 채널의 `allowFrom` |
+| 사용법 | config.json의 `allowFrom` 수정 → 5초 내 자동 반영 |
+
 ## Hot Reload MCP Servers
 
 MCP 서버 설정 변경 시 컨테이너 재시작 없이 재연결하는 기능.

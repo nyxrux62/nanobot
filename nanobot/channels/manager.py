@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any
 
 from loguru import logger
@@ -32,6 +33,7 @@ class ChannelManager:
         self.bus = bus
         self.channels: dict[str, BaseChannel] = {}
         self._dispatch_task: asyncio.Task | None = None
+        self._allow_from_watcher: asyncio.Task | None = None
 
         self._init_channels()
 
@@ -81,6 +83,58 @@ class ChannelManager:
                     f'Set ["*"] to allow everyone, or add specific user IDs.'
                 )
 
+    _ALLOW_FROM_POLL_INTERVAL = 5  # seconds between config file checks
+
+    async def _watch_allow_from(self) -> None:
+        """Watch config.json for allowFrom changes and hot-reload without restart."""
+        from nanobot.config.loader import get_config_path
+
+        config_path = get_config_path()
+        if not config_path.exists():
+            return
+
+        last_mtime = config_path.stat().st_mtime
+
+        while True:
+            try:
+                await asyncio.sleep(self._ALLOW_FROM_POLL_INTERVAL)
+                if not config_path.exists():
+                    continue
+                mtime = config_path.stat().st_mtime
+                if mtime == last_mtime:
+                    continue
+                last_mtime = mtime
+
+                data = json.loads(config_path.read_text(encoding="utf-8"))
+                channels_data = data.get("channels", {})
+
+                for name, channel in self.channels.items():
+                    section = channels_data.get(name, {})
+                    if not isinstance(section, dict):
+                        continue
+                    new_allow = section.get(
+                        "allowFrom", section.get("allow_from", [])
+                    )
+                    cfg = channel.config
+                    if isinstance(cfg, dict):
+                        old_allow = cfg.get("allowFrom", cfg.get("allow_from", []))
+                    else:
+                        old_allow = getattr(cfg, "allow_from", [])
+                    if new_allow != old_allow:
+                        if isinstance(cfg, dict):
+                            cfg["allowFrom"] = list(new_allow)
+                        else:
+                            cfg.allow_from = list(new_allow)
+                        logger.info(
+                            "{}: allowFrom hot-reloaded → {}",
+                            name,
+                            new_allow,
+                        )
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.debug("allowFrom watcher error: {}", e)
+
     async def _start_channel(self, name: str, channel: BaseChannel) -> None:
         """Start a channel and log any exceptions."""
         try:
@@ -96,6 +150,9 @@ class ChannelManager:
 
         # Start outbound dispatcher
         self._dispatch_task = asyncio.create_task(self._dispatch_outbound())
+
+        # Start allowFrom hot-reload watcher
+        self._allow_from_watcher = asyncio.create_task(self._watch_allow_from())
 
         # Start channels
         tasks = []
@@ -128,6 +185,14 @@ class ChannelManager:
     async def stop_all(self) -> None:
         """Stop all channels and the dispatcher."""
         logger.info("Stopping all channels...")
+
+        # Stop allowFrom watcher
+        if self._allow_from_watcher:
+            self._allow_from_watcher.cancel()
+            try:
+                await self._allow_from_watcher
+            except asyncio.CancelledError:
+                pass
 
         # Stop dispatcher
         if self._dispatch_task:
