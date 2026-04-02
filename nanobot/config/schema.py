@@ -186,6 +186,7 @@ class ExecToolConfig(Base):
     path_append: str = ""
     sandbox: str = ""  # sandbox backend: "" (none) or "bwrap"
     allowed_env_keys: list[str] = Field(default_factory=list)  # Env var names to pass through to subprocess (e.g. ["GOPATH", "JAVA_HOME"])
+    allow_internal_urls: bool = False  # If true, skip SSRF check (allow curl to private/internal IPs)
 
 class MCPServerConfig(Base):
     """MCP server connection configuration (stdio or HTTP)."""

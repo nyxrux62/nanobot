@@ -46,7 +46,9 @@ cfg['agents']['defaults']['provider'] = '$PROVIDER'
 ch = cfg.setdefault('channels', {}).setdefault('$NANOBOT_CHANNEL', {})
 ch['enabled'] = True
 ch['token'] = '$NANOBOT_BOT_TOKEN'
-ch['allowFrom'] = json.loads('$ALLOW_JSON')
+# Preserve existing allowFrom if already configured; only set from env if missing
+if 'allowFrom' not in ch:
+    ch['allowFrom'] = json.loads('$ALLOW_JSON')
 ch['streaming'] = True
 
 if '$API_KEY' and '$PROVIDER' != 'auto':

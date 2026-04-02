@@ -47,10 +47,12 @@ class ExecTool(Tool):
         sandbox: str = "",
         path_append: str = "",
         allowed_env_keys: list[str] | None = None,
+        allow_internal_urls: bool = False,
     ):
         self.timeout = timeout
         self.working_dir = working_dir
         self.sandbox = sandbox
+        self.allow_internal_urls = allow_internal_urls
         self.deny_patterns = deny_patterns or [
             r"\brm\s+-[rf]{1,2}\b",          # rm -r, rm -rf, rm -fr
             r"\bdel\s+/[fq]\b",              # del /f, del /q
@@ -280,9 +282,10 @@ class ExecTool(Tool):
             if not any(re.search(p, lower) for p in self.allow_patterns):
                 return "Error: Command blocked by safety guard (not in allowlist)"
 
-        from nanobot.security.network import contains_internal_url
-        if contains_internal_url(cmd):
-            return "Error: Command blocked by safety guard (internal/private URL detected)"
+        if not self.allow_internal_urls:
+            from nanobot.security.network import contains_internal_url
+            if contains_internal_url(cmd):
+                return "Error: Command blocked by safety guard (internal/private URL detected)"
 
         if self.restrict_to_workspace:
             if "..\\" in cmd or "../" in cmd:
