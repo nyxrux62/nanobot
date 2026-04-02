@@ -18,6 +18,7 @@ services:
           memory: 256M
     volumes:
       - ~/.nanobot-lato:/root/.nanobot
+      - ~/work-root/project:/root/project
     ports:
       - "18791:18790"
     environment:

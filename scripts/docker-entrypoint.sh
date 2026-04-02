@@ -29,6 +29,38 @@ done
 unset IFS
 ALLOW_JSON="$ALLOW_JSON]"
 
+mkdir -p "$(dirname "$CONFIG_PATH")"
+
+# If config.json exists, merge env-driven fields only (preserve tools, mcp, etc.)
+if [ -f "$CONFIG_PATH" ]; then
+    python3 -c "
+import json, sys
+
+with open('$CONFIG_PATH') as f:
+    cfg = json.load(f)
+
+cfg.setdefault('agents', {}).setdefault('defaults', {})
+cfg['agents']['defaults']['model'] = '$MODEL'
+cfg['agents']['defaults']['provider'] = '$PROVIDER'
+
+ch = cfg.setdefault('channels', {}).setdefault('$NANOBOT_CHANNEL', {})
+ch['enabled'] = True
+ch['token'] = '$NANOBOT_BOT_TOKEN'
+ch['allowFrom'] = json.loads('$ALLOW_JSON')
+ch['streaming'] = True
+
+if '$API_KEY' and '$PROVIDER' != 'auto':
+    cfg.setdefault('providers', {}).setdefault('$PROVIDER', {})['apiKey'] = '$API_KEY'
+
+cfg.setdefault('gateway', {}).update({'host': '0.0.0.0', 'port': 18790})
+
+with open('$CONFIG_PATH', 'w') as f:
+    json.dump(cfg, f, indent=2)
+"
+    echo "Config updated from environment variables: $CONFIG_PATH"
+    exec nanobot "$@"
+fi
+
 # Build provider config block
 PROVIDER_BLOCK=""
 if [ -n "$API_KEY" ] && [ "$PROVIDER" != "auto" ]; then
@@ -41,8 +73,6 @@ if [ -n "$API_KEY" ] && [ "$PROVIDER" != "auto" ]; then
 PEOF
 )
 fi
-
-mkdir -p "$(dirname "$CONFIG_PATH")"
 
 cat > "$CONFIG_PATH" <<EOF
 {
