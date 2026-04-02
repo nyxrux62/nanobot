@@ -3,11 +3,6 @@ set -e
 
 CONFIG_PATH="/root/.nanobot/config.json"
 
-# If config.json already exists, skip generation
-if [ -f "$CONFIG_PATH" ]; then
-    exec nanobot "$@"
-fi
-
 # Require at least channel + bot token to generate config
 if [ -z "$NANOBOT_CHANNEL" ] || [ -z "$NANOBOT_BOT_TOKEN" ]; then
     exec nanobot "$@"

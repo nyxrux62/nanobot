@@ -328,20 +328,20 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         detect_by_base_keyword="11434",
         default_api_base="http://localhost:11434/v1",
     ),
-    # === Ollama Cloud (remote, same native API as local Ollama) ==============
+    # === Ollama Cloud (remote, OpenAI-compatible /v1 endpoint) ===============
     ProviderSpec(
         name="ollama_cloud",
         keywords=("ollama-cloud", "ollama_cloud"),
         env_key="OLLAMA_CLOUD_API_KEY",
         display_name="Ollama Cloud",
-        litellm_prefix="ollama_chat",  # same LiteLLM routing as local Ollama
-        skip_prefixes=("ollama/", "ollama_chat/"),
+        litellm_prefix="openai",  # use OpenAI-compat endpoint for proper tool call support
+        skip_prefixes=("openai/", "ollama/", "ollama_chat/"),
         env_extras=(),
         is_gateway=True,  # routes any model via Ollama Cloud
         is_local=False,
         detect_by_key_prefix="",
         detect_by_base_keyword="ollama.com",
-        default_api_base="https://ollama.com",
+        default_api_base="https://ollama.com/v1",
         strip_model_prefix=False,
         model_overrides=(),
     ),

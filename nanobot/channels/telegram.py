@@ -235,6 +235,7 @@ class TelegramChannel(BaseChannel):
         self._bot_user_id: int | None = None
         self._bot_username: str | None = None
         self._stream_bufs: dict[str, _StreamBuf] = {}  # chat_id -> streaming state
+        self._stream_delivered: set[str] = set()  # chat_ids with completed stream delivery
 
     def is_allowed(self, sender_id: str) -> bool:
         """Preserve Telegram's legacy id|username allowlist matching."""
@@ -404,6 +405,7 @@ class TelegramChannel(BaseChannel):
                     await self._remove_reaction(msg.chat_id, int(reply_to_message_id))
                 except ValueError:
                     pass
+            self._stream_delivered.discard(msg.chat_id)
 
         try:
             chat_id = int(msg.chat_id)
@@ -541,6 +543,14 @@ class TelegramChannel(BaseChannel):
     def _is_not_modified_error(exc: Exception) -> bool:
         return isinstance(exc, BadRequest) and "message is not modified" in str(exc).lower()
 
+    def has_stream_buf(self, chat_id: str) -> bool:
+        """Return True if a stream buffer with a sent message exists for *chat_id*."""
+        buf = self._stream_bufs.get(chat_id)
+        if buf is not None and buf.message_id is not None:
+            return True
+        # Also check if stream was recently completed (buf already popped).
+        return chat_id in self._stream_delivered
+
     async def send_delta(self, chat_id: str, delta: str, metadata: dict[str, Any] | None = None) -> None:
         """Progressive message editing: send on first delta, edit on subsequent ones."""
         if not self._app:
@@ -552,9 +562,11 @@ class TelegramChannel(BaseChannel):
         if meta.get("_stream_end"):
             buf = self._stream_bufs.get(chat_id)
             if not buf or not buf.message_id or not buf.text:
+                self._stream_delivered.discard(chat_id)
                 return
             if stream_id is not None and buf.stream_id is not None and buf.stream_id != stream_id:
                 return
+            self._stream_delivered.add(chat_id)
             self._stop_typing(chat_id)
             if reply_to_message_id := meta.get("message_id"):
                 try:
@@ -924,6 +936,10 @@ class TelegramChannel(BaseChannel):
         metadata = self._build_message_metadata(message, user)
         session_key = self._derive_topic_session_key(message)
 
+        # Check permission before any typing indicator or processing
+        if not self.is_allowed(sender_id):
+            return
+
         # Telegram media groups: buffer briefly, forward as one aggregated turn.
         if media_group_id := getattr(message, "media_group_id", None):
             key = f"{str_chat_id}:{media_group_id}"
@@ -944,7 +960,6 @@ class TelegramChannel(BaseChannel):
                 self._media_group_tasks[key] = asyncio.create_task(self._flush_media_group(key))
             return
 
-        # Start typing indicator before processing
         self._start_typing(str_chat_id)
         await self._add_reaction(str_chat_id, message.message_id, self.config.react_emoji)
 

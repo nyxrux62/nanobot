@@ -107,6 +107,10 @@ class BaseChannel(ABC):
         """
         pass
 
+    def has_stream_buf(self, chat_id: str) -> bool:
+        """Return True if a stream buffer with sent content exists for *chat_id*."""
+        return False
+
     @property
     def supports_streaming(self) -> bool:
         """True when config enables streaming AND this subclass implements send_delta."""
