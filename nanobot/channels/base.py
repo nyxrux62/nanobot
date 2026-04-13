@@ -150,7 +150,7 @@ class BaseChannel(ABC):
             metadata: Optional channel-specific metadata.
             session_key: Optional session key override (e.g. thread-scoped sessions).
         """
-        if not self.is_allowed(sender_id):
+        if not self.is_allowed(sender_id) and not self.is_allowed(chat_id):
             logger.warning(
                 "Access denied for sender {} on channel {}. "
                 "Add them to allowFrom list in config to grant access.",

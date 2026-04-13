@@ -936,9 +936,6 @@ class TelegramChannel(BaseChannel):
         metadata = self._build_message_metadata(message, user)
         session_key = self._derive_topic_session_key(message)
 
-        # Check permission before any typing indicator or processing
-        if not self.is_allowed(sender_id):
-            return
 
         # Telegram media groups: buffer briefly, forward as one aggregated turn.
         if media_group_id := getattr(message, "media_group_id", None):

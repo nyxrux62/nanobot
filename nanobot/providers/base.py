@@ -441,11 +441,20 @@ class LLMProvider(ABC):
 
     async def _safe_chat(self, **kwargs: Any) -> LLMResponse:
         """Call chat() and convert unexpected exceptions to error responses."""
+        model = kwargs.get("model", "?")
+        t0 = asyncio.get_event_loop().time()
         try:
-            return await self.chat(**kwargs)
+            resp = await self.chat(**kwargs)
+            elapsed = asyncio.get_event_loop().time() - t0
+            tokens = resp.usage.get("completion_tokens", 0) if resp.usage else 0
+            logger.info("LLM chat done: model={} elapsed={:.1f}s tokens={} reason={}",
+                        model, elapsed, tokens, resp.finish_reason)
+            return resp
         except asyncio.CancelledError:
             raise
         except Exception as exc:
+            elapsed = asyncio.get_event_loop().time() - t0
+            logger.warning("LLM chat error: model={} elapsed={:.1f}s err={}", model, elapsed, exc)
             return LLMResponse(content=f"Error calling LLM: {exc}", finish_reason="error")
 
     async def chat_stream(
@@ -477,11 +486,20 @@ class LLMProvider(ABC):
 
     async def _safe_chat_stream(self, **kwargs: Any) -> LLMResponse:
         """Call chat_stream() and convert unexpected exceptions to error responses."""
+        model = kwargs.get("model", "?")
+        t0 = asyncio.get_event_loop().time()
         try:
-            return await self.chat_stream(**kwargs)
+            resp = await self.chat_stream(**kwargs)
+            elapsed = asyncio.get_event_loop().time() - t0
+            tokens = resp.usage.get("completion_tokens", 0) if resp.usage else 0
+            logger.info("LLM stream done: model={} elapsed={:.1f}s tokens={} reason={}",
+                        model, elapsed, tokens, resp.finish_reason)
+            return resp
         except asyncio.CancelledError:
             raise
         except Exception as exc:
+            elapsed = asyncio.get_event_loop().time() - t0
+            logger.warning("LLM stream error: model={} elapsed={:.1f}s err={}", model, elapsed, exc)
             return LLMResponse(content=f"Error calling LLM: {exc}", finish_reason="error")
 
     async def chat_stream_with_retry(
