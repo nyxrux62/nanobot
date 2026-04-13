@@ -1,8 +1,8 @@
-name: nanobot-lato
+name: nanobot-new-lato
 
 services:
-  nanobot-gateway-lato:
-    container_name: nanobot-gateway-lato
+  nanobot-gateway-new-lato:
+    container_name: nanobot-gateway-new-lato
     build:
       context: .
       dockerfile: Dockerfile
@@ -17,20 +17,20 @@ services:
           cpus: '0.25'
           memory: 256M
     volumes:
-      - ~/.nanobot-lato:/home/nanobot/.nanobot
+      - ~/.nanobot-new-lato:/home/nanobot/.nanobot
       - ~/work-root/project:/home/nanobot/project
     ports:
-      - "18791:18790"
+      - "18792:18790"
     environment:
       NANOBOT_CHANNEL: telegram
-      NANOBOT_BOT_TOKEN: "${LATO_BOT_TOKEN}"
-      NANOBOT_ALLOW_FROM: "${LATO_ALLOW_FROM}"
-      NANOBOT_PROVIDER: "${LATO_PROVIDER}"
-      NANOBOT_MODEL: "${LATO_MODEL}"
-      NANOBOT_API_KEY: "${LATO_API_KEY}"
+      NANOBOT_BOT_TOKEN: "${NEW_LATO_BOT_TOKEN}"
+      NANOBOT_ALLOW_FROM: "${NEW_LATO_ALLOW_FROM}"
+      NANOBOT_PROVIDER: "${NEW_LATO_PROVIDER}"
+      NANOBOT_MODEL: "${NEW_LATO_MODEL}"
+      NANOBOT_API_KEY: "${NEW_LATO_API_KEY}"
 
-  nanobot-cli-lato:
-    container_name: nanobot-cli-lato
+  nanobot-cli-new-lato:
+    container_name: nanobot-cli-new-lato
     build:
       context: .
       dockerfile: Dockerfile
@@ -39,5 +39,5 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - ~/.nanobot-lato:/home/nanobot/.nanobot
+      - ~/.nanobot-new-lato:/home/nanobot/.nanobot
     command: ["status"]
