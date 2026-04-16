@@ -280,6 +280,15 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         backend="openai_compat",
         default_api_base="https://api.minimax.io/v1",
     ),
+    # MiniMax Anthropic-compatible endpoint: supports thinking mode
+    ProviderSpec(
+        name="minimax_anthropic",
+        keywords=("minimax_anthropic",),
+        env_key="MINIMAX_API_KEY",
+        display_name="MiniMax (Anthropic)",
+        backend="anthropic",
+        default_api_base="https://api.minimax.io/anthropic",
+    ),
     # Mistral AI: OpenAI-compatible API
     ProviderSpec(
         name="mistral",
@@ -334,16 +343,21 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("ollama-cloud", "ollama_cloud"),
         env_key="OLLAMA_CLOUD_API_KEY",
         display_name="Ollama Cloud",
-        litellm_prefix="openai",  # use OpenAI-compat endpoint for proper tool call support
-        skip_prefixes=("openai/", "ollama/", "ollama_chat/"),
-        env_extras=(),
+        backend="openai_compat",
         is_gateway=True,  # routes any model via Ollama Cloud
-        is_local=False,
-        detect_by_key_prefix="",
         detect_by_base_keyword="ollama.com",
         default_api_base="https://ollama.com/v1",
-        strip_model_prefix=False,
-        model_overrides=(),
+    ),
+    # LM Studio (local, OpenAI-compatible)
+    ProviderSpec(
+        name="lm_studio",
+        keywords=("lm-studio", "lmstudio", "lm_studio"),
+        env_key="LM_STUDIO_API_KEY",
+        display_name="LM Studio",
+        backend="openai_compat",
+        is_local=True,
+        detect_by_base_keyword="1234",
+        default_api_base="http://localhost:1234/v1",
     ),
     # === OpenVINO Model Server (direct, local, OpenAI-compatible at /v3) ===
     ProviderSpec(

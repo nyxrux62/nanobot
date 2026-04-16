@@ -12,14 +12,13 @@ Ollama Cloud API를 LLM provider로 사용할 수 있도록 추가.
 
 | 항목 | 값 |
 |---|---|
-| LiteLLM prefix | `openai` (OpenAI 호환 /v1 endpoint 사용) |
+| backend | `openai_compat` (OpenAI 호환 /v1 endpoint 사용) |
 | env key | `OLLAMA_CLOUD_API_KEY` |
 | 감지 키워드 | api_base에 `ollama.com` 포함 시 자동 감지 |
 
-> **Note**: 초기에는 `ollama_chat` prefix를 사용했으나, LiteLLM의 ollama_chat 변환이
-> tool 메시지의 `tool_calls`, `name` 필드를 누락시켜 Ollama Cloud에서 500 에러가
-> 발생하는 버그가 있음. `openai` prefix + `/v1` endpoint로 전환하여 tool calling이
-> 모델에 무관하게 정상 동작하도록 수정함.
+> **Note**: 초기에는 LiteLLM의 `ollama_chat` 라우팅을 사용했으나 tool 메시지의
+> `tool_calls`/`name` 필드를 누락시켜 Ollama Cloud에서 500 에러가 발생. OpenAI 호환
+> `/v1` endpoint로 전환하여 tool calling이 모델에 무관하게 정상 동작하도록 수정함.
 
 ## Multi-Instance Docker Deployment
 
